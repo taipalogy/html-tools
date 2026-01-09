@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Diff Tool</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f0f0f0; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .textareas { display: flex; gap: 20px; margin-bottom: 20px; }
+        .textarea-wrapper { flex: 1; }
+        textarea { width: 100%; height: 250px; font-family: monospace; font-size: 14px; }
+        .buttons { display: flex; gap: 10px; margin-bottom: 20px; }
+        button { padding: 12px 24px; font-size: 16px; cursor: pointer; border: none; border-radius: 4px; }
+        .compute { background: #007bff; color: white; }
+        .clear { background: #6b7280; color: white; }
+        .diff-container { display: flex; gap: 20px; }
+        .diff-side { flex: 1; border: 1px solid #ccc; padding: 15px; min-height: 300px; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        ins { background: #7c3aed; color: white; text-decoration: none; padding: 4px 6px; border-radius: 4px; font-weight: bold; }
+        del { background: #dc2626; color: white; text-decoration: none; padding: 4px 6px; border-radius: 4px; font-weight: bold; }
+        .count { margin-top: 20px; font-weight: bold; font-size: 1.4em; text-align: center; color: #333; }
+        pre { margin: 0; white-space: pre-wrap; word-wrap: break-word; line-height: 1.6; }
+        h3 { margin-top: 0; color: #444; }
+        @media (max-width: 768px) { .textareas, .diff-container { flex-direction: column; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Text Diff Tool</h1>
+        <div class="textareas">
+            <div class="textarea-wrapper">
+                <label for="text1">Original Text:</label>
+                <textarea id="text1" placeholder="Paste original text here..."></textarea>
+            </div>
+            <div class="textarea-wrapper">
+                <label for="text2">Modified Text:</label>
+                <textarea id="text2" placeholder="Paste modified text here..."></textarea>
+            </div>
+        </div>
+        <div class="buttons">
+            <button class="compute" onclick="computeDiff()">Compute Diff</button>
+            <button class="clear" onclick="clearAll()">Clear All</button>
+        </div>
+        <div class="diff-container">
+            <div class="diff-side">
+                <h3>Original (deletions highlighted)</h3>
+                <pre id="diff1">(empty)</pre>
+            </div>
+            <div class="diff-side">
+                <h3>Modified (additions highlighted)</h3>
+                <pre id="diff2">(empty)</pre>
+            </div>
+        </div>
+        <div id="count" class="count">Number of diffs: 0</div>
+    </div>
+    <script>
+        function escapeHtml(text) {
+            return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        const myersDiff = (a, b) => {
+            const m = a.length, n = b.length;
+            const dp = Array.from({length: m + 1}, () => Array(n + 1).fill(0));
+            for (let i = 0; i <= m; i++) dp[i][0] = i;
+            for (let j = 0; j <= n; j++) dp[0][j] = j;
+            for (let i = 1; i <= m; i++) {
+                for (let j = 1; j <= n; j++) {
+                    if (a[i - 1] === b[j - 1]) {
+                        dp[i][j] = dp[i - 1][j - 1];
+                    } else {
+                        dp[i][j] = 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+                    }
+                }
+            }
+            let i = m, j = n, diffs = [];
+            while (i > 0 || j > 0) {
+                if (i > 0 && j > 0 && a[i - 1] === b[j - 1]) {
+                    diffs.unshift({ value: a[i - 1], operation: 'equal' });
+                    i--; j--;
+                } else if (i > 0 && (j === 0 || dp[i][j] === dp[i - 1][j] + 1)) {
+                    diffs.unshift({ value: a[i - 1], operation: 'delete' });
+                    i--;
+                } else {
+                    diffs.unshift({ value: b[j - 1], operation: 'insert' });
+                    j--;
+                }
+            }
+            return diffs;
+        };
+
+        function computeDiff() {
+            const text1 = document.getElementById('text1').value || '';
+            const text2 = document.getElementById('text2').value || '';
+            const a = text1.match(/\s+|\S+/g) || [];
+            const b = text2.match(/\s+|\S+/g) || [];
+            let diff = myersDiff(a, b);
+
+            const merged = [];
+            if (diff.length > 0) {
+                let current = { operation: diff[0].operation, value: diff[0].value };
+                for (let k = 1; k < diff.length; k++) {
+                    if (diff[k].operation === current.operation) {
+                        current.value += diff[k].value;
+                    } else {
+                        merged.push(current);
+                        current = { operation: diff[k].operation, value: diff[k].value };
+                    }
+                }
+                merged.push(current);
+            }
+
+            let html1 = '', html2 = '', count = 0;
+            merged.forEach(p => {
+                const esc = escapeHtml(p.value);
+                if (p.operation === 'delete') {
+                    html1 += `<del>${esc}</del>`;
+                    count++;
+                } else if (p.operation === 'insert') {
+                    html2 += `<ins>${esc}</ins>`;
+                    count++;
+                } else {
+                    html1 += esc;
+                    html2 += esc;
+                }
+            });
+
+            document.getElementById('diff1').innerHTML = html1 || '(empty)';
+            document.getElementById('diff2').innerHTML = html2 || '(empty)';
+            document.getElementById('count').textContent = `Number of diffs: ${count}`;
+        }
+
+        function clearAll() {
+            document.getElementById('text1').value = '';
+            document.getElementById('text2').value = '';
+            document.getElementById('diff1').innerHTML = '(empty)';
+            document.getElementById('diff2').innerHTML = '(empty)';
+            document.getElementById('count').textContent = 'Number of diffs: 0';
+        }
+    </script>
+</body>
+</html>
