@@ -16,9 +16,9 @@
         .clear { background: #6b7280; color: white; }
         .diff-container { display: flex; gap: 20px; }
         .diff-side { flex: 1; border: 1px solid #ccc; padding: 15px; min-height: 300px; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        ins { background: #7c3aed; color: white; text-decoration: none; padding: 4px 6px; border-radius: 4px; font-weight: bold; }
-        del { background: #dc2626; color: white; text-decoration: none; padding: 4px 6px; border-radius: 4px; font-weight: bold; }
-        .count { margin-top: 20px; font-weight: bold; font-size: 1.4em; text-align: center; color: #333; }
+        ins { background: #7c3aed; color: white; text-decoration: none; padding: 1px 4px; border-radius: 4px; font-weight: normal; }
+        del { background: #dc2626; color: white; text-decoration: none; padding: 1px 4px; border-radius: 4px; font-weight: normal; }
+        .count { margin-top: 0px; font-weight: bold; font-size: 1.4em; text-align: center; color: #64748b; }
         pre { margin: 0; white-space: pre-wrap; word-wrap: break-word; line-height: 1.6; }
         h3 { margin-top: 0; color: #444; }
         @media (max-width: 768px) { .textareas, .diff-container { flex-direction: column; } }
@@ -41,6 +41,7 @@
             <button class="compute" onclick="computeDiff()">Compute Diff</button>
             <button class="clear" onclick="clearAll()">Clear All</button>
         </div>
+        <div id="count" class="count">Number of diffs: 0</div>
         <div class="diff-container">
             <div class="diff-side">
                 <h3>Original (deletions highlighted)</h3>
@@ -51,7 +52,6 @@
                 <pre id="diff2">(empty)</pre>
             </div>
         </div>
-        <div id="count" class="count">Number of diffs: 0</div>
     </div>
     <script>
         function escapeHtml(text) {
