@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Diff Tool (Pair-Matching)</title>
+    <style>
+        :root {
+            --bg-color: #f8fafc;
+            --container-bg: #ffffff;
+            --text-color: #1e293b;
+            --border-color: #cbd5e1;
+            --btn-blue: #2563eb;
+            --btn-blue-hover: #1d4ed8;
+            --btn-gray: #64748b;
+            --btn-gray-hover: #475569;
+            
+            /* Primary Highlight Styles */
+            --ins-bg: #7c3aed;
+            --del-bg: #dc2626;
+            
+            /* Secondary Pass Style (Whitespace-Only Changes) */
+            --ws-bg: #ffffff;
+            --ws-border: 1px solid #000000;
+            --ws-text: #000000;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            padding: 24px;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: var(--container-bg);
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        header {
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 12px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            color: #0f172a;
+        }
+
+        .input-grid, .output-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        @media (min-width: 768px) {
+            .input-grid, .output-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .pane {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-weight: 600;
+            margin-bottom: 6px;
+            font-size: 0.875rem;
+            color: #475569;
+        }
+
+        textarea {
+            width: 100%;
+            height: 240px;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.85rem;
+            resize: vertical;
+            outline: none;
+            background-color: #fafafa;
+        }
+
+        textarea:focus {
+            border-color: var(--btn-blue);
+            background-color: #ffffff;
+        }
+
+        .actions-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        @media (min-width: 480px) {
+            .button-group {
+                flex-direction: row;
+                align-items: center;
+            }
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn-compute {
+            background-color: var(--btn-blue);
+            color: white;
+        }
+
+        .btn-compute:hover {
+            background-color: var(--btn-blue-hover);
+        }
+
+        .btn-clear {
+            background-color: var(--btn-gray);
+            color: white;
+        }
+
+        .btn-clear:hover {
+            background-color: var(--btn-gray-hover);
+        }
+
+        .counter-badge {
+            font-size: 1.4rem;
+            color: #64748b;
+            font-weight: bold;
+            margin-top: 0px;
+        }
+
+        .display-view {
+            width: 100%;
+            min-height: 450px;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+            word-break: break-all;
+            background-color: #ffffff;
+        }
+
+        /* Highlight classes */
+        ins, del {
+            text-decoration: none;
+            padding: 1px 4px;
+            border-radius: 4px;
+            font-weight: normal;
+        }
+
+        ins.primary {
+            background-color: var(--ins-bg);
+            color: #ffffff;
+        }
+
+        del.primary {
+            background-color: var(--del-bg);
+            color: #ffffff;
+        }
+
+        /* Secondary evaluation pass styling (Whitespace structural variance) */
+        ins.secondary, del.secondary {
+            background-color: var(--ws-bg) !important;
+            color: var(--ws-text) !important;
+            border: var(--ws-border) !important;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Text Diff Tool (Pair-Matching)</h1>
+    </header>
+
+    <div class="input-grid">
+        <div class="pane">
+            <label for="originalText">Original Text</label>
+            <textarea id="originalText"></textarea>
+        </div>
+        <div class="pane">
+            <label for="modifiedText">Modified Text</label>
+            <textarea id="modifiedText"></textarea>
+        </div>
+    </div>
+
+    <div class="actions-panel">
+        <div class="button-group">
+            <button id="computeBtn" class="btn-compute">Compute Diff</button>
+            <button id="clearBtn" class="btn-clear">Clear All</button>
+        </div>
+        <span id="diffCounter" class="counter-badge">Active highlights: 0</span>
+    </div>
+
+    <div class="output-grid">
+        <div class="pane">
+            <label>Original View (Deletions)</label>
+            <div id="originalOutput" class="display-view"></div>
+        </div>
+        <div class="pane">
+            <label>Modified View (Additions)</label>
+            <div id="modifiedOutput" class="display-view"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // System Boot Configuration: Inputs must remain completely empty by default.
+    document.getElementById('originalText').value = '';
+    document.getElementById('modifiedText').value = '';
+
+    document.getElementById('computeBtn').addEventListener('click', runDiffEngine);
+    document.getElementById('clearBtn').addEventListener('click', clearAllFields);
+
+    function clearAllFields() {
+        document.getElementById('originalText').value = '';
+        document.getElementById('modifiedText').value = '';
+        document.getElementById('originalOutput').innerHTML = '';
+        document.getElementById('modifiedOutput').innerHTML = '';
+        document.getElementById('diffCounter').textContent = 'Active highlights: 0';
+    }
+
+    function runDiffEngine() {
+        const srcOld = document.getElementById('originalText').value;
+        const srcNew = document.getElementById('modifiedText').value;
+
+        // Tokenization pattern preserves both non-whitespace units and explicit whitespace layouts
+        const tokenize = (text) => text.match(/\s+|\S+/g) || [];
+        const tokensOld = tokenize(srcOld);
+        const tokensNew = tokenize(srcNew);
+
+        // Core Myers Diff Engine Implementation
+        const diffOperations = computeMyersDiff(tokensOld, tokensNew);
+        
+        // Linear Block Merger Strategy (Regroups consecutive identical operation paths)
+        const mergedBlocks = mergeAdjacentOperations(diffOperations);
+
+        // Execute Secondary Scan Processing Architecture
+        evaluateBlockLayouts(mergedBlocks);
+
+        // Generate View Matrix output pipelines
+        renderOutputPanes(mergedBlocks);
+    }
+
+    function computeMyersDiff(arrOld, arrNew) {
+        const N = arrOld.length;
+        const M = arrNew.length;
+        const maxEdit = N + M;
+        
+        // V array handles coordinate mapping paths
+        const V = { 1: 0 };
+        const trace = [];
+
+        let currentX = 0;
+        let currentY = 0;
+        let complete = false;
+
+        for (let d = 0; d <= maxEdit; d++) {
+            trace.push({ ...V });
+            for (let k = -d; k <= d; k += 2) {
+                let x;
+                if (k === -d || (k !== d && V[k - 1] < V[k + 1])) {
+                    x = V[k + 1]; // Move down from upper path (Addition)
+                } else {
+                    x = V[k - 1] + 1; // Move right from left path (Deletion)
+                }
+                let y = x - k;
+
+                while (x < N && y < M && arrOld[x] === arrNew[y]) {
+                    x++;
+                    y++;
+                }
+                V[k] = x;
+
+                if (x >= N && y >= M) {
+                    currentX = x;
+                    currentY = y;
+                    complete = true;
+                    break;
+                }
+            }
+            if (complete) break;
+        }
+
+        // Traceback path generation vector mapping
+        const path = [];
+        let k = currentX - currentY;
+
+        for (let d = trace.length - 1; d >= 0; d--) {
+            const currentV = trace[d];
+            const prevK = (k === -d || (k !== d && currentV[k - 1] < currentV[k + 1])) ? k + 1 : k - 1;
+            const prevX = currentV[prevK];
+            const prevY = prevX - prevK;
+
+            while (currentX > prevX && currentY > prevY) {
+                path.unshift({ type: 'equal', oldVal: arrOld[currentX - 1], newVal: arrNew[currentY - 1] });
+                currentX--;
+                currentY--;
+            }
+
+            if (d > 0) {
+                if (k - prevK === 1) {
+                    path.unshift({ type: 'delete', val: arrOld[currentX - 1] });
+                    currentX--;
+                } else {
+                    path.unshift({ type: 'insert', val: arrNew[currentY - 1] });
+                    currentY--;
+                }
+            }
+            k = prevK;
+        }
+        return path;
+    }
+
+    function mergeAdjacentOperations(operations) {
+        if (operations.length === 0) return [];
+
+        const blocks = [];
+        let activeBlock = { type: operations[0].type, text: operations[0].val || operations[0].oldVal };
+
+        for (let i = 1; i < operations.length; i++) {
+            const op = operations[i];
+            if (op.type === activeBlock.type) {
+                activeBlock.text += (op.val || op.oldVal);
+            } else {
+                blocks.push(activeBlock);
+                activeBlock = { type: op.type, text: op.val || op.oldVal };
+            }
+        }
+        blocks.push(activeBlock);
+
+        // Map unified parallel structure blocks
+        const structuredBlocks = [];
+        for (let i = 0; i < blocks.length; i++) {
+            if (blocks[i].type === 'delete' && blocks[i + 1] && blocks[i + 1].type === 'insert') {
+                structuredBlocks.push({
+                    type: 'mismatch',
+                    deletion: blocks[i].text,
+                    addition: blocks[i + 1].text,
+                    style: 'primary'
+                });
+                i++; // Skip step processing over structural pair
+            } else if (blocks[i].type === 'delete') {
+                structuredBlocks.push({ type: 'delete', text: blocks[i].text, style: 'primary' });
+            } else if (blocks[i].type === 'insert') {
+                structuredBlocks.push({ type: 'insert', text: blocks[i].text, style: 'primary' });
+            } else {
+                structuredBlocks.push({ type: 'equal', text: blocks[i].text });
+            }
+        }
+        return structuredBlocks;
+    }
+
+    function evaluateBlockLayouts(blocks) {
+        const normalize = (text) => String(text).replace(/\s+/g, '');
+
+        for (let block of blocks) {
+            if (block.type === 'mismatch') {
+                // Secondary engine filtering condition check
+                if (normalize(block.deletion) === normalize(block.addition)) {
+                    // Update visual layout style property parameters to alternative configuration tracking profile
+                    block.style = 'secondary';
+                }
+            }
+        }
+    }
+
+    function renderOutputPanes(blocks) {
+        const leftPane = document.getElementById('originalOutput');
+        const rightPane = document.getElementById('modifiedOutput');
+
+        leftPane.innerHTML = '';
+        rightPane.innerHTML = '';
+
+        let activeHighlightCount = 0;
+
+        blocks.forEach(block => {
+            if (block.type === 'equal') {
+                leftPane.appendChild(document.createTextNode(block.text));
+                rightPane.appendChild(document.createTextNode(block.text));
+            } else if (block.type === 'delete') {
+                const delNode = document.createElement('del');
+                delNode.className = block.style;
+                delNode.textContent = block.text;
+                leftPane.appendChild(delNode);
+                activeHighlightCount++;
+            } else if (block.type === 'insert') {
+                const insNode = document.createElement('ins');
+                insNode.className = block.style;
+                insNode.textContent = block.text;
+                rightPane.appendChild(insNode);
+                activeHighlightCount++;
+            } else if (block.type === 'mismatch') {
+                const delNode = document.createElement('del');
+                delNode.className = block.style;
+                delNode.textContent = block.deletion;
+                leftPane.appendChild(delNode);
+
+                const insNode = document.createElement('ins');
+                insNode.className = block.style;
+                insNode.textContent = block.addition;
+                rightPane.appendChild(insNode);
+
+                activeHighlightCount += 2;
+            }
+        });
+
+        document.getElementById('diffCounter').textContent = `Active highlights: ${activeHighlightCount}`;
+    }
+</script>
+
+</body>
+</html>
